@@ -7,7 +7,8 @@ import 'package:bedrive/utils/extensions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:open_file/open_file.dart';
+import 'package:url_launcher/url_launcher.dart';
+//import 'package:open_file/open_file.dart';
 
 class OpenInExternalAppButton extends StatelessWidget {
   final FileEntry fileEntry;
@@ -15,6 +16,7 @@ class OpenInExternalAppButton extends StatelessWidget {
   const OpenInExternalAppButton(this.fileEntry, {super.key});
 
   @override
+
   Widget build(BuildContext context) {
     return IconButton(
       icon: const Icon(Icons.open_in_new_outlined),
@@ -34,18 +36,25 @@ class OpenInExternalAppButton extends StatelessWidget {
           return;
         }
 
-        OpenResult? result;
         try {
-          result = await OpenFile.open(
-            (localFile as File).path,
-            type: fileEntry.mime,
-          );
+          // Create a file URI
+          final uri = Uri.file((localFile as File).path);
+
+          // Check if we can launch the file
+          if (await canLaunchUrl(uri)) {
+            // Launch the file with the appropriate app
+            await launchUrl(
+              uri,
+              mode: LaunchMode.externalApplication,
+            );
+          } else {
+            context.showTextSnackBar(
+              'No installed application can open this file',
+            );
+          }
         } catch (e) {
-          //
-        }
-        if (result == null || result.type != ResultType.done) {
           context.showTextSnackBar(
-            'No installed application can open this file',
+            'Could not open the file',
           );
         }
       },
