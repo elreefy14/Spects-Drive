@@ -6,7 +6,7 @@ import 'package:bedrive/drive/transfers/models/upload_transfer_task.dart';
 import 'package:bedrive/i18n/styled_text.dart';
 import 'package:bedrive/router_provider.dart';
 import 'package:bedrive/ui/global_loading_indicator_provider.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -82,6 +82,9 @@ class NewEntryBottomSheet extends ConsumerWidget {
     }
 
     // Pick file from file system
+// First, import file_selector instead of file_picker
+
+// Then modify your ListTile code:
     children.add(
       ListTile(
         leading: const Icon(Icons.upload_file),
@@ -90,17 +93,26 @@ class NewEntryBottomSheet extends ConsumerWidget {
           Future.delayed(const Duration(milliseconds: 300), () {
             loadingIndicator.show(text: 'Preparing to upload files');
           });
-          FilePickerResult? result = await FilePicker.platform.pickFiles(
-            allowMultiple: true,
-          );
+
+          // Use file_selector to pick files
+          final List<XFile> files = await openFiles();
+
           loadingIndicator.hide();
           context.pop();
-          if (result != null) {
-            final filesToUpload = result.files
-                .where((e) => e.path != null)
-                .map((e) => UploadTransferTask(path: e.path!, fileSize: e.size))
-                .toList();
-            driveApi.uploadEntries(filesToUpload);
+
+          if (files.isNotEmpty) {
+            final filesToUpload = files.map((file) async {
+              final fileSize = await file.length();
+              return UploadTransferTask(
+                path: file.path,
+                fileSize: fileSize,
+              );
+            }).toList();
+
+            // Wait for all file sizes to be calculated
+            final tasks = await Future.wait(filesToUpload);
+
+            driveApi.uploadEntries(tasks);
             if (Platform.isIOS) {
               context.pushNamed(AppRoute.transfers.name);
             }
@@ -108,7 +120,6 @@ class NewEntryBottomSheet extends ConsumerWidget {
         },
       ),
     );
-
     // Take photo / video
     children.addAll(
       [
